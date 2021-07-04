@@ -4,8 +4,10 @@
 #include <BlynkSimpleEsp32.h>
 #include "EEPROM.h"
 #include "RTClib.h"
+#include "DHT.h"
 
 RTC_DS3231 rtc;
+
 
 #define BLYNK_PRINT Serial
 
@@ -13,6 +15,10 @@ RTC_DS3231 rtc;
 #define LED_PIN     16
 #define POMPA_PIN   26
 #define LAMPU_PIN   27
+#define DHT11_PIN   19
+#define LDR_PIN     34
+
+DHT dht(DHT11_PIN, DHT11);
 
 char auth[] = "zjoK1PoZkTDQaGWeiQHRngaVlzGg1onj";
 
@@ -24,6 +30,8 @@ void sendLightIntensityValue(int lightIntensity);
 void rtcInit();
 void turnOffPompa();
 void turnOnPompa();
+float readTemperature();
+int readLightIntensity();
 
 unsigned long prevMillis = 0;
 
@@ -58,6 +66,8 @@ void setup() {
 
   rtcInit();
 
+  dht.begin();
+
   nextTurnOnPompaTime = rtc.now() + TimeSpan(0, 0, DELAY_POMPA_MATI , 0);
 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -76,8 +86,8 @@ void loop() {
   Blynk.run();
   
   if((millis() - prevMillis) >= SEND_INTERVAL){
-    sendTemperatureValue((float)random(25, 35));
-    sendLightIntensityValue(random(0, 100));
+    sendTemperatureValue(readTemperature());
+    sendLightIntensityValue(readLightIntensity());
 
     prevMillis = millis();
   }
@@ -101,7 +111,6 @@ void loop() {
       nextTurnOnPompaTime = rtc.now() + TimeSpan(0, 0, DELAY_POMPA_MATI, 0);
     }
   }
-
 }
 
 void sendTemperatureValue(float temp){
@@ -164,3 +173,10 @@ void turnOnPompa(){
   digitalWrite(POMPA_PIN, HIGH);
 }
 
+float readTemperature(){
+  return dht.readTemperature();
+}
+
+int readLightIntensity(){
+  return map(analogRead(LDR_PIN), 0, 4096, 0, 100);
+}
