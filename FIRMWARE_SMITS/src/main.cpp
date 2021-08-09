@@ -9,7 +9,6 @@
 
 RTC_DS3231 rtc;
 
-
 #define BLYNK_PRINT Serial
 
 #define BUZZER_PIN      14
@@ -25,7 +24,7 @@ dimmerLamp dimmer(DIMMER_OUT_PIN, DIMMER_ZERO_PIN);
 
 DHT dht(DHT11_PIN, DHT11);
 
-char auth[] = "zjoK1PoZkTDQaGWeiQHRngaVlzGg1onj";
+char auth[] = "7RnDo0c4XWX9swG-zTDrZEF_YRnuQw0Y";
 
 const char * WIFI_SSID = "BISA";
 const char * WIFI_PASS = "bayu1234";
@@ -38,6 +37,11 @@ void turnOnPompa();
 float readTemperature();
 int readLightIntensity();
 void turnUVOn(int intensity);
+void sendCurrentDelayNyalaPompa(int delay);
+void sendCurrentDelayMatiPompa(int delay);
+void sendCurrentStatusKontrol(bool isManual);
+void sendCurrentStatusPompa(bool isTurnedOn);
+void sendCurrentStatusLampu(int lightIntensity);
 
 unsigned long prevMillis = 0;
 
@@ -103,6 +107,12 @@ void setup() {
   Serial.println("Connected to WiFi");
 
   Blynk.begin(auth, WIFI_SSID, WIFI_PASS);
+
+  sendCurrentDelayMatiPompa(DELAY_POMPA_MATI);
+  sendCurrentDelayNyalaPompa(DELAY_POMPA_MENYALA);
+  sendCurrentStatusLampu(0);
+  sendCurrentStatusPompa(false);
+  sendCurrentStatusKontrol(false);
 }
 
 void loop() {
@@ -128,6 +138,8 @@ void loop() {
 
       isPompaTurnedOn = !isPompaTurnedOn;
 
+      sendCurrentStatusPompa(isPompaTurnedOn);
+
       nextTurnOffPompaTime = rtc.now() + TimeSpan(0, 0, DELAY_POMPA_MENYALA, 0);
     }
 
@@ -137,6 +149,8 @@ void loop() {
       turnOffPompa();
 
       isPompaTurnedOn = !isPompaTurnedOn;
+
+      sendCurrentStatusPompa(isPompaTurnedOn);
 
       nextTurnOnPompaTime = rtc.now() + TimeSpan(0, 0, DELAY_POMPA_MATI, 0);
     }
@@ -164,25 +178,35 @@ void loop() {
               case 1 :
                 turnUVOn(20);
 
+                sendCurrentStatusLampu(20);
+
                 turnOnUvStep = 2;
                 break;
               case 2 :
                 turnUVOn(40);
+
+                sendCurrentStatusLampu(40);
 
                 turnOnUvStep = 3;
                 break;
               case 3 :
                 turnUVOn(60);
 
+                sendCurrentStatusLampu(60);
+
                 turnOnUvStep = 4;
                 break;
               case 4 :
                 turnUVOn(80);
 
+                sendCurrentStatusLampu(80);
+
                 turnOnUvStep = 5;
                 break;
               case 5 :
                 turnUVOn(100);
+
+                sendCurrentStatusLampu(100);
 
                 turnOnUvStep = 1;
                 isDayLightTurnedOn = false;
@@ -198,6 +222,8 @@ void loop() {
       else{
         isDayLightTurnedOn = false;
         turnUVOn(1);
+
+        sendCurrentStatusLampu(0);
       }
     }
 
@@ -222,12 +248,16 @@ void loop() {
                 Serial.printf("%02d:%02d:%02d\n", now.hour(), now.minute(), now.second());
                 turnUVOn(100);
 
+                sendCurrentStatusLampu(100);
+
                 turnOnUvStep = 2;
                 break;
               case 2 :
                 Serial.println("Case 1"); 
                 Serial.printf("%02d:%02d:%02d\n", now.hour(), now.minute(), now.second());
                 turnUVOn(82);
+
+                sendCurrentStatusLampu(82);
 
                 turnOnUvStep = 3;
                 break;
@@ -236,6 +266,8 @@ void loop() {
                 Serial.printf("%02d:%02d:%02d\n", now.hour(), now.minute(), now.second());
                 turnUVOn(90);
 
+                sendCurrentStatusLampu(90);
+
                 turnOnUvStep = 4;
                 break;
               case 4 :
@@ -243,12 +275,16 @@ void loop() {
                 Serial.printf("%02d:%02d:%02d\n", now.hour(), now.minute(), now.second());
                 turnUVOn(95);
 
+                sendCurrentStatusLampu(95);
+
                 turnOnUvStep = 5;
                 break;
               case 5 :
                 Serial.println("Case 1"); 
                 Serial.printf("%02d:%02d:%02d\n", now.hour(), now.minute(), now.second());
                 turnUVOn(80);
+
+                sendCurrentStatusLampu(80);
 
                 turnOnUvStep = 1;
                 isNightLightTurnedOn = false;
@@ -281,50 +317,96 @@ void sendTemperatureValue(float temp){
   char tempBuf[10];
   sprintf(tempBuf, "%s °C", String(temp,2));
 
-  Blynk.virtualWrite(V4, tempBuf);
+  Blynk.virtualWrite(V0, tempBuf);
 }
 
 void sendLightIntensityValue(int lightIntensity){
   char intensityBuf[10];
   sprintf(intensityBuf, "%d %%", lightIntensity);
 
-  Blynk.virtualWrite(V5, intensityBuf);
+  Blynk.virtualWrite(V1, intensityBuf);
 }
 
-BLYNK_WRITE(V3){
+void sendCurrentDelayNyalaPompa(int delay){
+  char delayNyalaPompaBuf[15];
+  sprintf(delayNyalaPompaBuf, "%d Menit", delay);
+
+  Blynk.virtualWrite(V4, delayNyalaPompaBuf);
+}
+
+void sendCurrentDelayMatiPompa(int delay){
+  char delayMatiPompaBuf[15];
+  sprintf(delayMatiPompaBuf, "%d Menit", delay);
+
+  Blynk.virtualWrite(V5, delayMatiPompaBuf);
+}
+
+void sendCurrentStatusKontrol(bool isManual){
+  if(isManual) Blynk.virtualWrite(V7, "Kontrol Manual");
+  else Blynk.virtualWrite(V7, "Kontrol Otomatis");
+}
+
+void sendCurrentStatusPompa(bool isTurnedOn){
+  if(isTurnedOn) Blynk.virtualWrite(V6, "Menyala");
+  else Blynk.virtualWrite(V6, "Mati");
+}
+
+void sendCurrentStatusLampu(int lightIntensity){
+  if(lightIntensity > 0){
+    char statusLampuBuf[15];
+    sprintf(statusLampuBuf, "Menyala (%d)", lightIntensity);
+
+    Blynk.virtualWrite(V8, statusLampuBuf);
+  }
+  else Blynk.virtualWrite(V8, "Mati");
+}
+
+BLYNK_WRITE(V2){
   DELAY_POMPA_MATI = param.asInt() * 60 * 1000; //Convert minutes to milisecods
 
   EEPROM.write(DELAY_POMPA_MATI_EEPROM_ADDRESS, param.asInt());
   EEPROM.commit();
+
+  sendCurrentDelayMatiPompa(DELAY_POMPA_MATI);
 }
 
-BLYNK_WRITE(V6){
+BLYNK_WRITE(V3){
   DELAY_POMPA_MENYALA = param.asInt() * 60 * 1000; //Convert minutes to miliseconds
 
   EEPROM.write(DELAY_POMPA_MENYALA_EEPROM_ADDRESS, param.asInt());
   EEPROM.commit();
+
+  sendCurrentDelayNyalaPompa(DELAY_POMPA_MENYALA);
 }
 
-BLYNK_WRITE(V0){
+BLYNK_WRITE(V9){
   manualControl = param.asInt();
+
+  sendCurrentStatusKontrol(manualControl);
 }
 
-BLYNK_WRITE(V1){
+BLYNK_WRITE(V10){
   Serial.println(param.asInt());
   if(manualControl){
     if(param.asInt()){
       turnOnPompa();
+
+      sendCurrentStatusPompa(true);
     }
     else{
       turnOffPompa();
+
+      sendCurrentStatusPompa(false);
     }
   }
 }
 
-BLYNK_WRITE(V2){
+BLYNK_WRITE(V11){
   Serial.println(param.asInt());
   if(manualControl){
     turnUVOn(param.asInt());
+
+    sendCurrentStatusLampu(param.asInt());
   }
 }
 
