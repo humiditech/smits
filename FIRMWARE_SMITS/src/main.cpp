@@ -347,8 +347,16 @@ void sendCurrentStatusKontrol(bool isManual){
 }
 
 void sendCurrentStatusPompa(bool isTurnedOn){
-  if(isTurnedOn) Blynk.virtualWrite(V6, "Menyala");
-  else Blynk.virtualWrite(V6, "Mati");
+  if(isTurnedOn) {
+    Blynk.virtualWrite(V6, "Menyala");
+
+    Serial.println("Send Menyala");
+  }
+  else {
+    Blynk.virtualWrite(V6, "Mati");
+
+    Serial.println("Send Mati");
+  }
 }
 
 void sendCurrentStatusLampu(int lightIntensity){
@@ -367,7 +375,7 @@ BLYNK_WRITE(V2){
   EEPROM.write(DELAY_POMPA_MATI_EEPROM_ADDRESS, param.asInt());
   EEPROM.commit();
 
-  sendCurrentDelayMatiPompa(DELAY_POMPA_MATI);
+  sendCurrentDelayMatiPompa(param.asInt());
 }
 
 BLYNK_WRITE(V3){
@@ -376,7 +384,7 @@ BLYNK_WRITE(V3){
   EEPROM.write(DELAY_POMPA_MENYALA_EEPROM_ADDRESS, param.asInt());
   EEPROM.commit();
 
-  sendCurrentDelayNyalaPompa(DELAY_POMPA_MENYALA);
+  sendCurrentDelayNyalaPompa(param.asInt());
 }
 
 BLYNK_WRITE(V9){
